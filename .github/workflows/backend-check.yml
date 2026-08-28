@@ -1,0 +1,93 @@
+name: Backend check
+
+on:
+  push:
+    branches: [ '**' ]
+    paths:
+      - '**.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
+      - '.golangci.yml'
+      - '.github/workflows/backend-check.yml'
+  pull_request:
+    branches: [ '**' ]
+
+permissions:
+  contents: write
+
+jobs:
+  autoformat:
+    name: Auto-format (gofmt + goimports)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Format (gofmt + goimports)
+        run: make fmt
+
+      - name: Automatically commit if anything was reformatted
+        if: github.event_name == 'push'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "style: auto-format code (gofmt + goimports) [skip ci]"
+          file_pattern: '*.go'
+
+      - name: Check formatting (fork PRs only)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork
+        run: make fmt-check
+
+  check:
+    name: Vet, lint, gosec, vulnerabilities, secrets, build, test
+    needs: autoformat
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code (including any auto-format commit)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Install tools (golangci-lint, govulncheck, gitleaks, goimports)
+        run: make tools
+
+      - name: Check formatting (must already be clean)
+        run: make fmt-check
+
+      - name: go vet
+        run: make vet
+
+      - name: Full lint (staticcheck + gosec + errcheck + ...)
+        run: make lint
+
+      - name: Dependency vulnerability scan (govulncheck)
+        run: make vuln
+
+      - name: Hardcoded secrets scan (gitleaks)
+        run: make secrets
+
+      - name: Build
+        run: make build
+
+      - name: Test
+        run: make test
+
+      - name: Check go.mod / go.sum consistency
+        run: make tidy-check

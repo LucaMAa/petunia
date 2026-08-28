@@ -1,0 +1,43 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    # Bug reali e semplificazioni (ex staticcheck)
+    - staticcheck
+    # Sicurezza: SQLi, path traversal, crypto debole, permessi file, ecc.
+    - gosec
+    # Errori di ritorno ignorati
+    - errcheck
+    # Assegnazioni il cui valore non viene mai usato
+    - ineffassign
+    # Codice/variabili/funzioni morte
+    - unused
+    # go vet integrato
+    - govet
+    # Refusi in commenti/stringhe
+    - misspell
+    # Complessità ciclomatica eccessiva
+    - gocyclo
+    # Import non ordinati / non usati
+
+
+  settings:
+    gosec:
+      # G104 (errori ignorati) è già coperto da errcheck: evitiamo doppioni.
+      excludes:
+        - G104
+    gocyclo:
+      min-complexity: 20
+
+  exclusions:
+    rules:
+      # Nei test tolleriamo qualche verbosità in meno su gosec/gocyclo.
+      - path: _test\.go
+        linters:
+          - gosec
+          - gocyclo
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

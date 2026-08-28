@@ -1,0 +1,5 @@
+{
+  "enabled": true,
+  "start_at_boot": true,
+  "check_interval_minutes": 1
+}
